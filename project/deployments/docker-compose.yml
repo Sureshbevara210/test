@@ -1,0 +1,124 @@
+# Docker Compose configuration for local development
+# This would be used when splitting into actual microservices
+
+version: '3.8'
+
+services:
+  # Data Ingestion Service
+  data-ingestion:
+    build: ./data-ingestion
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - VECTOR_DB_URL=http://vector-search:3000
+    depends_on:
+      - vector-search
+
+  # Vector Search Service  
+  vector-search:
+    build: ./vector-search
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - VECTOR_DB_HOST=vectordb
+      - VECTOR_DB_PORT=6333
+    depends_on:
+      - vectordb
+
+  # Query API Service
+  query-api:
+    build: ./query-api
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=development
+      - RBAC_SERVICE_URL=http://rbac-service:3000
+      - LLM_SERVICE_URL=http://llm-service:3000
+      - VECTOR_SEARCH_URL=http://vector-search:3000
+      - AUDIT_SERVICE_URL=http://audit-service:3000
+      - SUGGESTIONS_SERVICE_URL=http://suggestions-service:3000
+    depends_on:
+      - rbac-service
+      - llm-service
+      - vector-search
+      - audit-service
+      - suggestions-service
+
+  # RBAC Service
+  rbac-service:
+    build: ./rbac-service
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://user:password@postgres:5432/rbac
+
+  # LLM Service
+  llm-service:
+    build: ./llm-service
+    ports:
+      - "3005:3000"
+    environment:
+      - NODE_ENV=development
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=gpt-4
+
+  # Audit Service
+  audit-service:
+    build: ./audit-service
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://user:password@postgres:5432/audit
+
+  # Suggestions Service
+  suggestions-service:
+    build: ./suggestions-service
+    ports:
+      - "3007:3000"
+    environment:
+      - NODE_ENV=development
+
+  # User Interface
+  user-interface:
+    build: ./user-interface
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_QUERY_API_URL=http://query-api:3000
+    depends_on:
+      - query-api
+
+  # Infrastructure Services
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=ragdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  vectordb:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:

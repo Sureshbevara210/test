@@ -1,0 +1,48 @@
+# Query API Kubernetes Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: query-api
+  namespace: rag-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: query-api
+  template:
+    metadata:
+      labels:
+        app: query-api
+    spec:
+      containers:
+      - name: query-api
+        image: ragproject/query-api:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: RBAC_SERVICE_URL
+          value: "http://rbac-service:3000"
+        - name: LLM_SERVICE_URL
+          value: "http://llm-service:3000"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: query-api
+  namespace: rag-system
+spec:
+  selector:
+    app: query-api
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
